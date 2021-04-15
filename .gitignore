@@ -1,8 +1,5 @@
-/data/DIV2K_train_HR/
-/data/DIV2K_valid_HR/
-/data/test/
-/test_results/SRF_4/
-/test_results/SRF_OSRGAN_4/
-/training_results/SRF_4/
-/training_results/SRF_OSRGAN_4/
-/statistics/
+/data/*
+/test_results/*
+/training_results/*
+/statistics/*
+.idea
