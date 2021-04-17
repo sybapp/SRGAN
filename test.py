@@ -15,13 +15,11 @@ from model import Generator
 
 if __name__ == '__main__':
 
-    UPSCALE_FACTOR = 4
-    MODEL_NAME = 'G_epoch_4_100.pth'
+    UPSCALE_FACTOR = 8
+    MODEL_NAME = 'G_epoch_8_100.pth'
 
-    results = {'Set5': {'psnr': [], 'ssim': []},
-               'Set14': {'psnr': [], 'ssim': []},
-               'BSD100': {'psnr': [], 'ssim': []},
-               'Urban100': {'psnr': [], 'ssim': []}
+    results = {'Set5': {'psnr': [], 'ssim': []}, 'Set14': {'psnr': [], 'ssim': []}, 'BSD100': {'psnr': [], 'ssim': []},
+               'Urban100': {'psnr': [], 'ssim': []}, 'SunHays80': {'psnr': [], 'ssim': []}
                }
 
     model = Generator(UPSCALE_FACTOR).eval()
@@ -58,7 +56,6 @@ if __name__ == '__main__':
         utils.save_image(image, out_path + image_name.split('.')[0] + '_psnr_%.4f_ssim_%.4f.' % (psnr, ssim) +
                          image_name.split('.')[-1], padding=5)
 
-        # 保存 psnr\ssim
         results[image_name.split('_')[0]]['psnr'].append(psnr)
         results[image_name.split('_')[0]]['ssim'].append(ssim)
 

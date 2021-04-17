@@ -77,7 +77,7 @@ class UpsampleBLock_OSRGAN(nn.Module):
 class Generator(nn.Module):
     def __init__(self, scale_factor):
         super(Generator, self).__init__()
-        # 计算残差块的个数
+        self.residual_blocks_num = 5
         self.upsample_block_num = int(math.log(scale_factor, 2))
 
         self.conv1 = nn.Sequential(
@@ -85,28 +85,32 @@ class Generator(nn.Module):
             nn.PReLU()
         )
 
-        for i in range(self.upsample_block_num):
+        for i in range(self.residual_blocks_num):
             self.add_module('residual' + str(i + 1), ResidualBlock(64))
 
         self.conv2 = nn.Sequential(
             nn.Conv2d(64, 64, kernel_size=3, padding=1),
             nn.BatchNorm2d(64)
         )
-        self.upsample = nn.Sequential(
-            UpsampleBLock(64, 2),
-            UpsampleBLock(64, 2),
-            nn.Conv2d(64, 3, kernel_size=9, padding=4)
-        )
+
+        for i in range(self.upsample_block_num):
+            self.add_module('upsample' + str(i + 1), UpsampleBLock(64, 2))
+
+        self.conv3 = nn.Conv2d(64, 3, 9, stride=1, padding=4)
 
     def forward(self, x):
         x = self.conv1(x)
         cache = x.clone()
-        for i in range(self.upsample_block_num):
-            x = self.__getattr__('residual' + str(i + 1))(x)
 
-        x = self.conv2(x)
-        x = self.upsample(x + cache)
-        return (torch.tanh(x) + 1.0) / 2.0
+        for i in range(self.residual_blocks_num):
+            cache = self.__getattr__('residual' + str(i + 1))(cache)
+
+        x = self.conv2(cache) + x
+
+        for i in range(self.upsample_block_num):
+            x = self.__getattr__('upsample' + str(i + 1))(x)
+
+        return self.conv3(x)
 
 
 class Discriminator(nn.Module):
@@ -114,39 +118,39 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.net = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=3, padding=1),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(),
 
             nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(64),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(),
 
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(),
 
             nn.Conv2d(128, 128, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(),
 
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(),
 
             nn.Conv2d(256, 256, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(),
 
             nn.Conv2d(256, 512, kernel_size=3, padding=1),
             nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(),
 
             nn.Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(),
 
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(512, 1024, kernel_size=1),
-            nn.LeakyReLU(0.2),
+            nn.LeakyReLU(),
             nn.Conv2d(1024, 1, kernel_size=1)
         )
 
@@ -159,7 +163,7 @@ class Discriminator(nn.Module):
 class Generator_OSRGAN(nn.Module):
     def __init__(self, scale_factor):
         super(Generator_OSRGAN, self).__init__()
-        # 计算残差块的个数
+        self.residual_blocks_num = 5
         self.upsample_block_num = int(math.log(scale_factor, 2))
 
         self.conv1 = nn.Sequential(
@@ -167,28 +171,29 @@ class Generator_OSRGAN(nn.Module):
             Swish()
         )
 
-        for i in range(self.upsample_block_num):
+        for i in range(self.residual_blocks_num):
             self.add_module('residual' + str(i + 1), RRDB(64))
 
-        self.conv2 = nn.Sequential(
-            nn.Conv2d(64, 64, kernel_size=3, padding=1),
-            # nn.BatchNorm2d(64)
-        )
-        self.upsample = nn.Sequential(
-            UpsampleBLock_OSRGAN(64, 2),
-            UpsampleBLock_OSRGAN(64, 2),
-            nn.Conv2d(64, 3, kernel_size=9, padding=4)
-        )
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
+
+        for i in range(self.upsample_block_num):
+            self.add_module('upsample' + str(i + 1), UpsampleBLock(64, 2))
+
+        self.conv3 = nn.Conv2d(64, 3, 9, stride=1, padding=4)
 
     def forward(self, x):
         x = self.conv1(x)
         cache = x.clone()
-        for i in range(self.upsample_block_num):
-            x = self.__getattr__('residual' + str(i + 1))(x)
 
-        x = self.conv2(x)
-        x = self.upsample(x + cache)
-        return (torch.tanh(x) + 1.0) / 2.0
+        for i in range(self.n_residual_blocks):
+            cache = self.__getattr__('residual' + str(i + 1))(cache)
+
+        x = self.conv2(cache) + x
+
+        for i in range(self.upsample_block_num):
+            x = self.__getattr__('upsample' + str(i + 1))(x)
+
+        return self.conv3(x)
 
 
 class Discriminator_OSRGAN(nn.Module):
@@ -196,39 +201,39 @@ class Discriminator_OSRGAN(nn.Module):
         super(Discriminator_OSRGAN, self).__init__()
         self.net = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=3, padding=1),
-            nn.LeakyReLU(0.2),
+            Swish(),
 
             nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(64),
-            nn.LeakyReLU(0.2),
+            Swish(),
 
             nn.Conv2d(64, 128, kernel_size=3, padding=1),
             nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
+            Swish(),
 
             nn.Conv2d(128, 128, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(128),
-            nn.LeakyReLU(0.2),
+            Swish(),
 
             nn.Conv2d(128, 256, kernel_size=3, padding=1),
             nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
+            Swish(),
 
             nn.Conv2d(256, 256, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
+            Swish(),
 
             nn.Conv2d(256, 512, kernel_size=3, padding=1),
             nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
+            Swish(),
 
             nn.Conv2d(512, 512, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
+            Swish(),
 
             nn.AdaptiveAvgPool2d(1),
             nn.Conv2d(512, 1024, kernel_size=1),
-            nn.LeakyReLU(0.2),
+            Swish(),
             nn.Conv2d(1024, 1, kernel_size=1)
         )
 
@@ -236,3 +241,7 @@ class Discriminator_OSRGAN(nn.Module):
         x = self.net(x)
         batch_size = x.size(0)
         return torch.sigmoid(x.view(batch_size))
+
+
+if __name__ == '__main__':
+    print(Generator_OSRGAN(8))

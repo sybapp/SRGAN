@@ -50,7 +50,7 @@ if __name__ == '__main__':
         G.train()
         D.train()
         for data, target in train_bar:
-            g_update_first = True
+            # g_update_first = True
             batch_size = data.size(0)
             running_results['batch_sizes'] += batch_size
 
@@ -62,25 +62,25 @@ if __name__ == '__main__':
             if torch.cuda.is_available():
                 z = z.cuda()
 
-            fake_img = G(data)
-            fake_out = D(fake_img).mean()
+            fake_img = G(z)
+            is_real = D(fake_img).mean()
             G.zero_grad()
-            g_loss = generator_criterion(fake_out, fake_img, real_img)
+            g_loss = generator_criterion(is_real, fake_img, real_img)
             g_loss.backward()
             optimizerG.step()
 
             real_out = D(real_img).mean()
-            fake_out = D(fake_img.detach()).mean()
-            d_loss = 1 - real_out + fake_out
+            is_real = D(fake_img.detach()).mean()
+            d_loss = 1 - real_out + is_real
             D.zero_grad()
-            d_loss.backward(d_loss.clone().detach())
+            d_loss.backward()
             optimizerD.step()
 
             # 优化前当前批次的损失
             running_results['g_loss'] += g_loss.item() * batch_size
             running_results['d_loss'] += d_loss.item() * batch_size
             running_results['d_score'] += real_out.item() * batch_size
-            running_results['g_score'] += fake_out.item() * batch_size
+            running_results['g_score'] += is_real.item() * batch_size
 
             train_bar.set_description(desc='[%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f' % (
                 epoch, NUM_EPOCHS, running_results['d_loss'] / running_results['batch_sizes'],

@@ -10,7 +10,21 @@
             </Attribute>
           </value>
         </entry>
+        <entry key="\model.py">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
         <entry key="\statistics\srf_4_train_results.csv">
+          <value>
+            <Attribute>
+              <option name="separator" value="," />
+            </Attribute>
+          </value>
+        </entry>
+        <entry key="\test.py">
           <value>
             <Attribute>
               <option name="separator" value="," />
