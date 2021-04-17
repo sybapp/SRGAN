@@ -35,9 +35,9 @@ class GeneratorOSRGANLoss(nn.Module):
         self.mse_loss = nn.MSELoss()
         self.tv_loss = TVLoss()
 
-    def forward(self, is_true, out_images, target_images):
-        # Adversarial Loss，is_true越大，图片越真，Adversarial Loss越小
-        adversarial_loss = torch.mean(1 - is_true)
+    def forward(self, is_real, out_images, target_images):
+        # Adversarial Loss，is_real越大，图片越真，Adversarial Loss越小 最小二乘法
+        adversarial_loss = 0.5 * torch.mean((is_real - 1) ** 2)
         # Perception Loss
         perception_loss = self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))
         # Image Loss

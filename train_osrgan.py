@@ -12,12 +12,12 @@ from tqdm import tqdm
 import pytorch_ssim
 from data_utils import TrainDatasetFromFolder, ValDatasetFromFolder, display_transform
 from loss import GeneratorOSRGANLoss
-from model import Generator_OSRGAN, Discriminator_OSRGAN
+from model import Generator_OSRGAN, Discriminator_OSRGAN, compute_gradient_penalty
 
 if __name__ == '__main__':
 
     CROP_SIZE = 88
-    UPSCALE_FACTOR = 4
+    UPSCALE_FACTOR = 8
     NUM_EPOCHS = 100
     BATCH_SIZE = 32
 
@@ -27,9 +27,9 @@ if __name__ == '__main__':
     val_loader = DataLoader(dataset=val_set, num_workers=1, batch_size=1, shuffle=False)
 
     G = Generator_OSRGAN(UPSCALE_FACTOR)
-    print('generator parameters:', sum(param.numel() for param in G.parameters()))
+    # print('generator parameters:', sum(param.numel() for param in G.parameters()))
     D = Discriminator_OSRGAN()
-    print('discriminator parameters:', sum(param.numel() for param in D.parameters()))
+    # print('discriminator parameters:', sum(param.numel() for param in D.parameters()))
 
     generator_criterion = GeneratorOSRGANLoss()
 
@@ -38,8 +38,8 @@ if __name__ == '__main__':
         D.cuda()
         generator_criterion.cuda()
 
-    optimizerG = optim.Adam(G.parameters())
-    optimizerD = optim.Adam(D.parameters())
+    optimizerG = optim.Adam(G.parameters(), lr=1e-4)
+    optimizerD = optim.Adam(D.parameters(), lr=1e-4)
 
     results = {'d_loss': [], 'g_loss': [], 'd_score': [], 'g_score': [], 'psnr': [], 'ssim': []}
 
@@ -50,7 +50,6 @@ if __name__ == '__main__':
         G.train()
         D.train()
         for data, target in train_bar:
-            # g_update_first = True
             batch_size = data.size(0)
             running_results['batch_sizes'] += batch_size
 
@@ -63,20 +62,19 @@ if __name__ == '__main__':
                 z = z.cuda()
 
             fake_img = G(z)
-            is_real = D(fake_img).mean()
+            fake_out = D(fake_img).mean()
             G.zero_grad()
-            g_loss = generator_criterion(is_real, fake_img, real_img)
+            g_loss = generator_criterion(fake_out, fake_img, real_img)
             g_loss.backward()
             optimizerG.step()
 
             real_out = D(real_img).mean()
             is_real = D(fake_img.detach()).mean()
-            d_loss = 1 - real_out + is_real
+            d_loss = 0.5 * (torch.mean((real_out - 1) ** 2) + torch.mean(is_real ** 2)) + + 10 * gradient_penalty
             D.zero_grad()
             d_loss.backward()
             optimizerD.step()
 
-            # 优化前当前批次的损失
             running_results['g_loss'] += g_loss.item() * batch_size
             running_results['d_loss'] += d_loss.item() * batch_size
             running_results['d_score'] += real_out.item() * batch_size
@@ -93,7 +91,7 @@ if __name__ == '__main__':
         if not os.path.exists(out_path):
             os.makedirs(out_path)
 
-        if epoch % 100 == 0 and epoch != 0:
+        if epoch % 10 == 0 and epoch != 0:
             with torch.no_grad():
                 val_bar = tqdm(val_loader)
                 valing_results = {'mse': 0, 'ssims': 0, 'psnr': 0, 'ssim': 0, 'batch_sizes': 0}
@@ -120,10 +118,10 @@ if __name__ == '__main__':
                             valing_results['psnr'], valing_results['ssim']))
 
                     val_images.extend(
-                        [display_transform()(val_hr_restore.squeeze(0)), display_transform()(hr.data.cpu().squeeze(0)),
-                         display_transform()(sr.data.cpu().squeeze(0))])
+                        [display_transform()(lr.squeeze(0)), display_transform()(sr.data.cpu().squeeze(0)),
+                         display_transform()(hr.data.cpu().squeeze(0))])
                 val_images = torch.stack(val_images)
-                val_images = torch.chunk(val_images, val_images.size(0) // 15)
+                val_images = torch.chunk(val_images, val_images.size()[0] // 15)
                 val_save_bar = tqdm(val_images, desc='[saving training results]')
                 index = 1
                 for image in val_save_bar:
@@ -133,7 +131,7 @@ if __name__ == '__main__':
 
             torch.save(G.state_dict(), 'epochs/G_OSRGAN_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch))
             torch.save(D.state_dict(), 'epochs/D_OSRGAN_epoch_%d_%d.pth' % (UPSCALE_FACTOR, epoch))
-            # 保存 loss\scores\psnr\ssim
+
             results['d_loss'].append(running_results['d_loss'] / running_results['batch_sizes'])
             results['g_loss'].append(running_results['g_loss'] / running_results['batch_sizes'])
             results['d_score'].append(running_results['d_score'] / running_results['batch_sizes'])
@@ -145,5 +143,6 @@ if __name__ == '__main__':
             data_frame = pd.DataFrame(
                 data={'Loss_D': results['d_loss'], 'Loss_G': results['g_loss'], 'Score_D': results['d_score'],
                       'Score_G': results['g_score'], 'PSNR': results['psnr'], 'SSIM': results['ssim']},
-                )
-            data_frame.to_csv(out_path + 'srf_osrgan_' + str(UPSCALE_FACTOR) + '_train_results.csv', index_label='Epoch')
+            )
+            data_frame.to_csv(out_path + 'srf_osrgan_' + str(UPSCALE_FACTOR) + '_train_results.csv',
+                              index_label='Epoch')

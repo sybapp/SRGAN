@@ -15,13 +15,11 @@ from model import Generator_OSRGAN
 
 if __name__ == '__main__':
 
-    UPSCALE_FACTOR = 4
-    MODEL_NAME = 'G_OSRGAN_epoch_4_100.pth'
+    UPSCALE_FACTOR = 8
+    MODEL_NAME = 'G_OSRGAN_epoch_8_100.pth'
 
-    results = {'Set5': {'psnr': [], 'ssim': []},
-               'Set14': {'psnr': [], 'ssim': []},
-               'BSD100': {'psnr': [], 'ssim': []},
-               'Urban100': {'psnr': [], 'ssim': []}
+    results = {'Set5': {'psnr': [], 'ssim': []}, 'Set14': {'psnr': [], 'ssim': []}, 'BSD100': {'psnr': [], 'ssim': []},
+               'Urban100': {'psnr': [], 'ssim': []}, 'SunHays80': {'psnr': [], 'ssim': []}
                }
 
     model = Generator_OSRGAN(UPSCALE_FACTOR).eval()
@@ -52,13 +50,12 @@ if __name__ == '__main__':
         ssim = pytorch_ssim.ssim(sr_image, hr_image).data
 
         test_images = torch.stack(
-            [display_transform()(hr_restore_img.squeeze(0)), display_transform()(hr_image.data.cpu().squeeze(0)),
-             display_transform()(sr_image.data.cpu().squeeze(0))])
+            [display_transform()(lr_image.squeeze(0)), display_transform()(sr_image.data.cpu().squeeze(0)),
+             display_transform()(hr_image.data.cpu().squeeze(0))])
         image = utils.make_grid(test_images, nrow=3, padding=5)
         utils.save_image(image, out_path + image_name.split('.')[0] + '_psnr_%.4f_ssim_%.4f.' % (psnr, ssim) +
                          image_name.split('.')[-1], padding=5)
 
-        # 保存 psnr\ssim
         results[image_name.split('_')[0]]['psnr'].append(psnr)
         results[image_name.split('_')[0]]['ssim'].append(ssim)
 
