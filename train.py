@@ -48,7 +48,6 @@ if __name__ == '__main__':
         G.train()
         D.train()
         for data, target in train_bar:
-            # g_update_first = True
             batch_size = data.size(0)
             running_results['batch_sizes'] += batch_size
 
@@ -70,7 +69,7 @@ if __name__ == '__main__':
 
             real_out = D(real_img).mean()
             is_real = D(fake_img.detach()).mean()
-            d_loss = 0.5 * (torch.mean((real_out - 1) ** 2) + torch.mean(is_real ** 2))
+            d_loss = real_out - is_real
             D.zero_grad()
             d_loss.backward()
             optimizerD.step()

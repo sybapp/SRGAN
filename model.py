@@ -3,30 +3,6 @@ import torch
 from torch import nn
 
 
-def compute_gradient_penalty(D, real_samples, fake_samples):
-    alpha = torch.randn(real_samples.size(0), 1, 1, 1)
-    if torch.cuda.is_available():
-        alpha = alpha.cuda()
-
-    interpolates = (alpha * real_samples + ((1 - alpha) * fake_samples)).requires_grad_(True)
-    d_interpolates = D(interpolates)
-    fake = torch.ones(d_interpolates.size())
-    if torch.cuda.is_available():
-        fake = fake.cuda()
-
-    gradients = torch.autograd.grad(
-        outputs=d_interpolates,
-        inputs=interpolates,
-        grad_outputs=fake,
-        create_graph=True,
-        retain_graph=True,
-        only_inputs=True,
-    )[0]
-    gradients = gradients.view(gradients.size()[0], -1)
-    gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
-    return gradient_penalty
-
-
 class ResidualBlock(nn.Module):
     def __init__(self, channels):
         super(ResidualBlock, self).__init__()
@@ -55,13 +31,9 @@ class Swish(nn.Module):
         return x
 
 
-class RRDB(nn.Module):
-    """
-    密集残差块
-    """
-
+class ResidualBlock_OSRGAN(nn.Module):
     def __init__(self, channels):
-        super(RRDB, self).__init__()
+        super(ResidualBlock_OSRGAN, self).__init__()
         self.conv1 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
         self.swish = Swish()
         self.conv2 = nn.Conv2d(channels, channels, kernel_size=3, padding=1)
@@ -205,7 +177,7 @@ class Generator_OSRGAN(nn.Module):
         )
 
         for i in range(self.residual_blocks_num):
-            self.add_module('residual' + str(i + 1), RRDB(64))
+            self.add_module('residual' + str(i + 1), ResidualBlock_OSRGAN(64))
 
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
 

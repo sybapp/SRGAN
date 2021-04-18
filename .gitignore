@@ -1,5 +1,2 @@
-/data/*
-/test_results/*
-/training_results/*
-/statistics/*
-.idea
+.idea/
+.gitignore

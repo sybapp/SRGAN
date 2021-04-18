@@ -15,7 +15,7 @@ class GeneratorLoss(nn.Module):
         self.tv_loss = TVLoss()
 
     def forward(self, is_real, out_images, target_images):
-        # Adversarial Loss，is_true越大，图片越真，Adversarial Loss越小
+        # Adversarial Loss，is_real越大，图片越真，Adversarial Loss越小
         adversarial_loss = torch.mean(1 - is_real)
         # Perception Loss
         perception_loss = self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))

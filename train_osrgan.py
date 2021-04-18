@@ -12,7 +12,7 @@ from tqdm import tqdm
 import pytorch_ssim
 from data_utils import TrainDatasetFromFolder, ValDatasetFromFolder, display_transform
 from loss import GeneratorOSRGANLoss
-from model import Generator_OSRGAN, Discriminator_OSRGAN, compute_gradient_penalty
+from model import Generator_OSRGAN, Discriminator_OSRGAN
 
 if __name__ == '__main__':
 
@@ -27,9 +27,7 @@ if __name__ == '__main__':
     val_loader = DataLoader(dataset=val_set, num_workers=1, batch_size=1, shuffle=False)
 
     G = Generator_OSRGAN(UPSCALE_FACTOR)
-    # print('generator parameters:', sum(param.numel() for param in G.parameters()))
     D = Discriminator_OSRGAN()
-    # print('discriminator parameters:', sum(param.numel() for param in D.parameters()))
 
     generator_criterion = GeneratorOSRGANLoss()
 
@@ -38,8 +36,8 @@ if __name__ == '__main__':
         D.cuda()
         generator_criterion.cuda()
 
-    optimizerG = optim.Adam(G.parameters(), lr=1e-4)
-    optimizerD = optim.Adam(D.parameters(), lr=1e-4)
+    optimizerG = optim.Adam(G.parameters())
+    optimizerD = optim.Adam(D.parameters())
 
     results = {'d_loss': [], 'g_loss': [], 'd_score': [], 'g_score': [], 'psnr': [], 'ssim': []}
 
@@ -70,7 +68,7 @@ if __name__ == '__main__':
 
             real_out = D(real_img).mean()
             is_real = D(fake_img.detach()).mean()
-            d_loss = 0.5 * (torch.mean((real_out - 1) ** 2) + torch.mean(is_real ** 2)) + + 10 * gradient_penalty
+            d_loss = 0.5 * (torch.mean((real_out - 1) ** 2) + torch.mean(is_real ** 2))
             D.zero_grad()
             d_loss.backward()
             optimizerD.step()
